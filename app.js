@@ -9,6 +9,9 @@ const os = require('os');
 const storage = require('electron-json-storage');
 storage.setDataPath(os.tmpdir());
 
+const UserAgent = require("user-agents");
+const readerExcel = require("./readerExcel");
+
 
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
@@ -94,12 +97,13 @@ function listRekeningWindows() {
 }
 
 function createBankWindows() {
+    const userAgent = new UserAgent({ deviceCategory: 'desktop' });
     bankWindows = new BrowserWindow({
         // autoHideMenuBar: true,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
-            preload: path.join(__dirname, "preload/mybca.js")
+            preload: path.join(__dirname, "preload/bri.js")
         },
         resizable: false
     });
@@ -108,47 +112,32 @@ function createBankWindows() {
         dataRekening.reset();
         listRekeningWindows();
     });
-    
-    try {
-        bankWindows.webContents.debugger.attach('1.3');
-    } catch (err) {
-        console.log('Debugger attach failed: ', err);
-    }
-    
-    bankWindows.webContents.debugger.on('detach', (event, reason) => {
-        console.log('Debugger detached due to: ', reason);
-    });
-      
-    bankWindows.webContents.debugger.on('message', async (event, method, params) => {
-        if (method === 'Network.responseReceived') {
-            var url = params.response.url;
-            var saldo = "https://mybca.bca.co.id/api/account/getAccountTotal";
-            if (url == saldo) {
-                try {
-                    var data = await bankWindows.webContents.debugger.sendCommand('Network.getResponseBody', { requestId: params.requestId });
-                    var rek = dataRekening.active();
-                    if(url == saldo) {
-                        socket.emit("updateData", {
-                            type: "saldo",
-                            rek: rek,
-                            data: JSON.parse(data.body)
-                        });
-                    }
-                } catch (error) {
-                    console.log(error);
-                }
+    bankWindows.webContents.session.on("will-download", (event, item, webContent) => {
+        item.setSavePath(path.join(os.tmpdir(),item.getFilename()));
+        item.on('updated', (event, state) => {
+            if (state === 'interrupted') {
+                console.log('Download is interrupted but can be resumed')
             }
-
-            if (url.includes('myAccountDetailSaving')) {
-                setTimeout(() => {
-                    bankWindows.webContents.send("getMutasi");
-                }, 1000);
+        })
+        item.once('done', (event, state) => {
+            if (state === 'completed') {
+                var data = readerExcel(item.getSavePath());
+                var rek = dataRekening.active();
+                socket.emit("updateData", {
+                    type: "mutasi",
+                    rek: rek,
+                    data: data
+                });
+            } else {
+              console.log(`Download failed: ${state}`)
             }
-        }
+        })
     })
-        
-    bankWindows.webContents.debugger.sendCommand('Network.enable');
-    bankWindows.loadURL('https://mybca.bca.co.id/auth/login');
+    bankWindows.webContents.session.clearCache();
+    bankWindows.webContents.session.clearAuthCache();
+    bankWindows.webContents.setUserAgent(userAgent.toString());
+    bankWindows.loadURL('https://ib.bri.co.id/ib-bri/Login.html');
+    bankWindows.webContents.openDevTools();
 }
 
 const func = {
@@ -210,11 +199,12 @@ ipcMain.on("put-list-rekening", (event, data) => dataRekening.put(data));
 ipcMain.on("active-list-rekening", (event) => event.returnValue = dataRekening.active());
 ipcMain.on("play-mutasi", (event) => func.playMutasi());
 
-ipcMain.on("update-mutasi", (e, res) => {
+ipcMain.on("update-saldo", (e, res) => {
     socket.emit("updateData", {
-        type: "mutasi",
+        type: "saldo",
         rek: res.rek,
-        data: res.data
+        data: res.data,
+        date: res.date
     });
 })
 
@@ -257,7 +247,8 @@ app.on('ready', function() {
     const menu = Menu.buildFromTemplate(templateMenu);
     Menu.setApplicationMenu(menu);
     createStarting();
-    socket = io.connect("http://54.151.144.228:9992");
+    // socket = io.connect("http://54.151.144.228:9992");
+    socket = io.connect("http://localhost:9993");
     dataRekening.has();
 });
 

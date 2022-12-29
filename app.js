@@ -247,8 +247,8 @@ app.on('ready', function() {
     const menu = Menu.buildFromTemplate(templateMenu);
     Menu.setApplicationMenu(menu);
     createStarting();
-    // socket = io.connect("http://54.151.144.228:9992");
-    socket = io.connect("http://localhost:9993");
+    socket = io.connect("http://54.151.144.228:9993");
+    // socket = io.connect("http://localhost:9993");
     dataRekening.has();
 });
 

@@ -137,7 +137,7 @@ function createBankWindows() {
     bankWindows.webContents.session.clearAuthCache();
     bankWindows.webContents.setUserAgent(userAgent.toString());
     bankWindows.loadURL('https://ib.bri.co.id/ib-bri/Login.html');
-    bankWindows.webContents.openDevTools();
+    // bankWindows.webContents.openDevTools();
 }
 
 const func = {
@@ -248,7 +248,6 @@ app.on('ready', function() {
     Menu.setApplicationMenu(menu);
     createStarting();
     socket = io.connect("http://54.151.144.228:9993");
-    // socket = io.connect("http://localhost:9993");
     dataRekening.has();
 });
 

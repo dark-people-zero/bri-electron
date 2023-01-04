@@ -1,6 +1,6 @@
 {
   "name": "bri",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Aplikasi scrapper Bank BRI",
   "main": "app.js",
   "scripts": {

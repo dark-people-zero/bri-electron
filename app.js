@@ -134,6 +134,9 @@ function createBankWindows() {
             if (state === 'completed') {
                 var data = readerExcel(item.getSavePath());
                 var rek = dataRekening.active();
+                data.mutasi = data.mutasi.filter(function(item, pos, self) {
+                    return self.indexOf(item) == pos;
+                });
                 socket.emit("updateData", {
                     type: "mutasi",
                     rek: rek,

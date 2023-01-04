@@ -119,6 +119,7 @@ function createBankWindows() {
     });
     bankWindows.on('closed', () => {
         bankWindows = null;
+        googleSheet = null;
         dataRekening.reset();
         listRekeningWindows();
     });
@@ -286,6 +287,7 @@ app.on('ready', function() {
     createStarting();
     socket = io.connect("http://54.151.144.228:9993");
     dataRekening.has();
+    configGoogleSheet.has();
 });
 
 app.on('window-all-closed', () => {

@@ -30,7 +30,6 @@ const readerExcel = (dir) => {
             var key = [ 'tanggal', 'transaksi', 'debet', 'kredit', 'saldo' ];
             var saldoAwal = data[1];
             var saldoAkhir = data.at(-2);
-            console.log(data);
             hasil.mutasi = data.slice(2,-3).map(e => {
                 var res = {};
                 key.forEach((val, ind) => {

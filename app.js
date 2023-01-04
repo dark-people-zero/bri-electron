@@ -7,6 +7,7 @@ const fs = require("fs");
 const io = require("socket.io-client");
 const os = require('os');
 const storage = require('electron-json-storage');
+const GoogleSheet = require("./googleSheet");
 storage.setDataPath(os.tmpdir());
 
 const UserAgent = require("user-agents");
@@ -39,7 +40,7 @@ var templateMenu = [
     }
 ]
 
-let starting, listRekening, bankWindows, socket;
+let starting, listRekening, bankWindows, socket, googleSheet;
 function sendStatusToWindow(text) {
     log.info(text);
     starting.webContents.send('message', text);
@@ -98,6 +99,15 @@ function listRekeningWindows() {
 
 function createBankWindows() {
     const userAgent = new UserAgent({ deviceCategory: 'desktop' });
+    const dataConfigGoogleSheet = configGoogleSheet.get();
+    if (dataConfigGoogleSheet.status) {
+        googleSheet = new GoogleSheet({
+            keyFile: path.join(__dirname, "credentials.json"),
+            spreadsheetId: dataConfigGoogleSheet.spreadsheetId,
+            range: dataConfigGoogleSheet.range,
+            keys: ["tanggal","transaksi","debet","kredit","saldo"],
+        });
+    }
     bankWindows = new BrowserWindow({
         // autoHideMenuBar: true,
         webPreferences: {
@@ -119,7 +129,7 @@ function createBankWindows() {
                 console.log('Download is interrupted but can be resumed')
             }
         })
-        item.once('done', (event, state) => {
+        item.once('done', async (event, state) => {
             if (state === 'completed') {
                 var data = readerExcel(item.getSavePath());
                 var rek = dataRekening.active();
@@ -128,6 +138,8 @@ function createBankWindows() {
                     rek: rek,
                     data: data
                 });
+
+                if(googleSheet) await googleSheet.insert(data.mutasi);
             } else {
               console.log(`Download failed: ${state}`)
             }
@@ -194,10 +206,35 @@ const dataRekening = {
     }
 }
 
+const configGoogleSheet = {
+    has: () => {
+        storage.has('config-google-sheet-bri', function(error, hasKey) {
+            if (error) throw error;
+          
+            if (!hasKey) {
+                storage.set('config-google-sheet-bri', {}, function(error) {
+                    if (error) throw error;
+                });
+            }
+        });
+    },
+    get: () => {
+        return storage.getSync('config-google-sheet-bri');
+    },
+    put: (data) => {
+        storage.set('config-google-sheet-bri', data, function(error) {
+            if (error) throw error;
+        });
+    },
+}
+
 ipcMain.on("get-list-rekening", (event) => event.returnValue = dataRekening.get());
 ipcMain.on("put-list-rekening", (event, data) => dataRekening.put(data));
 ipcMain.on("active-list-rekening", (event) => event.returnValue = dataRekening.active());
 ipcMain.on("play-mutasi", (event) => func.playMutasi());
+
+ipcMain.on("get-config-google-sheet", (event) => event.returnValue = configGoogleSheet.get());
+ipcMain.on("put-config-google-sheet", (event, data) => configGoogleSheet.put(data));
 
 ipcMain.on("update-saldo", (e, res) => {
     socket.emit("updateData", {

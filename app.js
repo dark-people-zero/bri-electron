@@ -8,6 +8,7 @@ const io = require("socket.io-client");
 const os = require('os');
 const storage = require('electron-json-storage');
 const GoogleSheet = require("./googleSheet");
+const moment = require("moment");
 storage.setDataPath(os.tmpdir());
 
 const UserAgent = require("user-agents");
@@ -142,8 +143,8 @@ function createBankWindows() {
                     rek: rek,
                     data: data
                 });
-
                 if(googleSheet) await googleSheet.insert(data.mutasi);
+                if(bankWindows) bankWindows.webContents.send("start");
             } else {
               console.log(`Download failed: ${state}`)
             }

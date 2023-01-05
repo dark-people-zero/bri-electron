@@ -35,6 +35,16 @@ ipcRenderer.on("reload", (e) => {
 })
 
 ipcRenderer.on("start", (e) => {
+    prosesInterval();
+})
+
+ipcRenderer.on("stop", (e) => {
+    statusRobot = false;
+    clearTimeout(interValRobot);
+    clearInterval(intTime);
+})
+
+function prosesInterval() {
     if (!statusRobot) {
         statusRobot = true;
         var span = $(`<span class="time">${time}</span>`);
@@ -48,19 +58,15 @@ ipcRenderer.on("start", (e) => {
             $('.logoib').find('.time').text(time);
         }, 1000);
         $('.logoib').append(span);
-        interValRobot = setInterval(() => {
+        interValRobot = setTimeout(() => {
             time = dataRekening.interval;
-            $('.logoib').find('.time').text(time);
+            clearInterval(intTime);
+            $('.logoib').find('.time').remove();
+            statusRobot = false;
             funProses();
         }, dataRekening.interval*1000);
     }
-})
-
-ipcRenderer.on("stop", (e) => {
-    statusRobot = false;
-    clearInterval(interValRobot);
-    clearInterval(intTime);
-})
+}
 
 function funProses() {
     var menu = document.getElementById('iframemenu');
@@ -84,8 +90,8 @@ function funProses() {
                 setTimeout(() => {
                     content.contentDocument.querySelector('#ACCOUNT_NO').value = dataRekening.norek;
                     content.contentDocument.querySelector('input[value="Download"]').click();
-                }, 1000);
-            }, 1000);
+                }, 2000);
+            }, 2000);
         }
     }, 1000);
 }

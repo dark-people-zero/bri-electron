@@ -6,13 +6,22 @@ const path = require("path");
 const fs = require("fs");
 const io = require("socket.io-client");
 const os = require('os');
+const util = require('util');
+const childProcess = require('child_process');
+const { fork } = require('child_process');
+const exec = util.promisify(childProcess.exec);
+const serverAuth = fork(`${__dirname}/pages/login/server.js`);
+const TEN_MEGABYTES = 1000 * 1000 * 10;
 const storage = require('electron-json-storage');
-const GoogleSheet = require("./googleSheet");
+const GoogleSheet = require("./libraries/googleSheet");
 const moment = require("moment");
-storage.setDataPath(os.tmpdir());
+const PW = require('./libraries/playwright');
+const DB = require('./libraries/db');
+const BK = require('./libraries/BK');
+// storage.setDataPath(os.tmpdir());
 
 const UserAgent = require("user-agents");
-const readerExcel = require("./readerExcel");
+const readerExcel = require("./libraries/readerExcel");
 
 
 autoUpdater.logger = log;
@@ -41,7 +50,7 @@ var templateMenu = [
     }
 ]
 
-let starting, listRekening, bankWindows, socket, googleSheet;
+let starting, listRekening, bankWindows, winAuth, socket, googleSheet, dataPW = {};
 function sendStatusToWindow(text) {
     log.info(text);
     starting.webContents.send('message', text);
@@ -73,7 +82,7 @@ function createStarting() {
         resizable: false,
     });
     // starting.webContents.openDevTools();
-    starting.on('closed', () => starting = null);
+    starting.on('closed', () => {starting = null});
     starting.loadURL(`file://${__dirname}/pages/starting.html#v${app.getVersion()}`);
     setTimeout(() => {
         if (isDev) {
@@ -86,7 +95,8 @@ function createStarting() {
 
 function listRekeningWindows() {
     listRekening = new BrowserWindow({
-        autoHideMenuBar: true,
+        width: 1000,
+        frame: false,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
@@ -95,7 +105,7 @@ function listRekeningWindows() {
     });
     listRekening.on('closed', () => listRekening = null);
     listRekening.loadURL(`file://${__dirname}/pages/list-rekening.html`);
-    // listRekening.webContents.openDevTools();
+    listRekening.webContents.openDevTools();
 }
 
 function createBankWindows() {
@@ -157,14 +167,255 @@ function createBankWindows() {
     // bankWindows.webContents.openDevTools();
 }
 
+function winAuthentication() {
+    winAuth = new BrowserWindow({
+        width: 500,
+        height: 520,
+        frame: false,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: true,
+            nativeWindowOpen: true,
+            preload: path.join(__dirname, 'preload/authentication.js')
+        },
+        resizable: false,
+    });
+    winAuth.on('closed', () => winAuth = null);
+    winAuth.loadURL("http://localhost:9990");
+
+    winAuth.webContents.setWindowOpenHandler(() => {
+        return {
+            action: 'allow',
+            overrideBrowserWindowOptions: {
+                autoHideMenuBar: true,
+                alwaysOnTop: true
+            }
+        }
+    });
+    
+    winAuth.webContents.session.clearCache();
+    winAuth.webContents.session.clearStorageData();
+
+    winAuth.webContents.openDevTools();
+}
+
+async function getAllProcess() {
+    var query = `-Query "select * from Win32_Process where Name = 'firefox.exe' or Name = 'electron.exe' or Name = 'bri.exe' "`;
+    let { error, stdout, stderr } = await exec(`Get-WmiObject ${query}`, { shell: 'powershell', maxBuffer: TEN_MEGABYTES });
+    if (stdout === '') return [];
+    stdout = stdout.trim().split(os.EOL).reduce((acc, cur) => {
+        if (cur.match(/^$/)) {
+            acc.unshift({});
+        } else {
+            acc[0][cur.split(':')[0]?.trim().toLocaleLowerCase()] = cur.split(':')[1]?.trim();
+        }
+        return acc;
+    }, [{}]).map(e => {
+        let pid = Number.parseInt(e.processid, 10);
+        let name = e.name;
+        return {
+            pid,
+            name
+        }
+    })
+    return stdout;
+}
+
 const func = {
     init: () => {
         starting.close();
-        listRekeningWindows();
+        var sesiAccount = sessionAccount.get();
+        if (sesiAccount.token) {
+            listRekeningWindows();
+        }else{
+            winAuthentication();
+        }
     },
-    playMutasi: () => {
-        listRekening.close();
-        createBankWindows();
+    sendMessage: (data, message, error, runInterval = false) => {
+        listRekening.webContents.send("change-status", {
+            username: data.username,
+            error: error,
+            message: message,
+            runInterval
+        });
+    },
+    playMutasi: async (data, cb = 0) => {
+        const pw = new PW(data);
+        dataPW[data.username] = pw;
+        const br = await pw.createBrowser();
+        var msg = "Sedang membuat browser. percobaan ke "+(cb+1);
+        func.sendMessage(data, msg, false);
+        if (br.status) {
+            func.sendMessage(data, "Mencoba Login sabar ya gan...", false);
+            const lg = await pw.login();
+            if (lg.status) {
+                func.sendMessage(data, "Login berhasil dengan user, "+lg.message, false);
+                setTimeout(async () => {
+                    func.sendMessage(data, "Lagi coba ambil saldo, "+lg.message, false);
+                    await func.getSaldo(data);
+                    setTimeout(async () => {
+                        func.sendMessage(data, "Lagi coba ambil mutasi, "+lg.message, false);
+                        await func.getMutasi(data);
+                    }, 1000);
+                }, 1000);
+            }else{
+                if (lg.rejected) {
+                    delete dataPW[data.username];
+                    if (cb > 5) {
+                        msg = "Silahkan ganti Proxy atau ganti type browser. Jika masih berlanjut silahkan coba 30 menit lagi untuk proxy ini.";
+                        func.sendMessage(data, msg, true);
+                    }else{
+                        func.sendMessage(data, msg, false);
+                        await func.playMutasi(cb+1);
+                    }
+    
+                }else{
+                    if (pw.close) {
+                        func.sendMessage(data, lg.message, true);
+                        delete dataPW[data.username];
+                    }else{
+                        func.sendMessage(data, "Lagi coba logout ", false);
+                        const logout = await pw.logout();
+                        if (logout.status) {
+                            func.sendMessage(data, lg.message, true);
+                        }else{
+                            func.sendMessage(data, logout.message, true);
+                        }
+                        delete dataPW[data.username];
+                    }
+                }
+            }
+        }else{
+            if (br.rejected) {
+                delete dataPW[data.username];
+                if (cb > 5) {
+                    msg = "Silahkan ganti Proxy atau ganti type browser. Jika masih berlanjut silahkan coba 30 menit lagi untuk proxy ini.";
+                    func.sendMessage(data, msg, true);
+                }else{
+                    func.sendMessage(data, msg, false);
+                    await func.playMutasi(data, cb+1);
+                }
+
+            }else{
+                func.sendMessage(data, br.message, true);
+                delete dataPW[data.username];
+            }
+        }
+    },
+    stopMutasi: async (data) => {
+        var tr = dataPW[data.username];
+        if (tr) {
+            tr.closeWindows();
+            delete dataPW[data.username];
+        }
+    },
+    getSaldo: async(data) => {
+        const pw = dataPW[data.username];
+        const sl = await pw.saldo();
+        if (sl.status) {
+            func.sendMessage(data, "Sedang upload data saldo ke DB", false);
+            var usr = sessionAccount.get();
+            const saveSaldo = await DB.saveData({
+                data: {
+                    saldo: sl.data.saldo
+                },
+                norek: data.norek,
+                username: data.username,
+                email: usr.email,
+                time: sl.data.time
+            }, "saldo");
+            if (saveSaldo.status) {
+                func.sendMessage(data, "Berhasil upload data saldo ke DB", false);
+            }else{
+                func.sendMessage(data, "mencoba logout", false);
+                var lg = await pw.logout();
+                if (lg.status) {
+                    func.sendMessage(data, saveSaldo.message, true);
+                } else {
+                    func.sendMessage(data, lg.message, true);
+                }
+            }
+
+        }else{
+            var msg = "ada error pada get saldo. ini error nya => "+sl.message;
+            func.sendMessage(data, msg, true);
+            setTimeout(async () => {
+                func.sendMessage(data, "Lagi coba logout", true);
+                const lg = await pw.logout();
+                if (lg.status) {
+                    func.sendMessage(data, msg, true);
+                }else{
+                    func.sendMessage(data, lg.message, true);
+                }
+                delete dataPW[data.username];
+            }, 1000);
+        }
+    },
+    getMutasi: async(data) => {
+        const pw = dataPW[data.username];
+        const mt = await pw.mutasi();
+        if (mt.status) {
+            func.sendMessage(data, "Sedang upload data mutasi ke DB", false);
+            var usr = sessionAccount.get();
+            var dt = mt.data.data.mutasi.map(e => {
+                e.type = e.debet != "" || e.debet > 0 ? "DB" : "CR";
+                e.amount = e.debet != "" || e.debet > 0 ? e.debet : e.kredit;
+                delete e.debet;
+                delete e.kredit;
+                return e;
+            });
+            const saveMutasi = await DB.saveData({
+                data: {
+                    mutasi: dt
+                },
+                norek: data.norek,
+                username: data.username,
+                email: usr.email,
+                time: mt.data.time
+            }, "mutasi");
+
+            if (saveMutasi.status) {
+                func.sendMessage(data, "Berhasil upload data mutasi ke DB", false, true);
+            }else{
+                func.sendMessage(data, "mencoba logout", false);
+                var lg = await pw.logout();
+                if (lg.status) {
+                    func.sendMessage(data, saveMutasi.message, true);
+                } else {
+                    func.sendMessage(data, lg.message, true);
+                }
+            }
+
+        }else{
+            var msg = "ada error pada get mutasi. ini error nya => "+mt.message;
+            func.sendMessage(data, msg, false);
+            setTimeout(async () => {
+                func.sendMessage(data, "Lagi coba logout", false);
+                const lg = await pw.logout();
+                if (lg.status) {
+                    func.sendMessage(data, msg, true);
+                }else{
+                    func.sendMessage(data, lg.message, true);
+                }
+                delete dataPW[data.username];
+            }, 1000);
+        }
+    },
+    logoutBank: async (username) => {
+        const pw = dataPW[username];
+        const data = {username};
+        func.sendMessage(data, "Lagi coba logout", false);
+        const lg = await pw.logout();
+        if (lg.status) {
+            func.sendMessage(data, "Berhasil logout", true);
+        }else{
+            func.sendMessage(data, lg.message, true);
+        }
+        delete dataPW[data.username];
+    },
+    getSaldoMutasi: async (data) => {
+        await func.getSaldo(data);
+        await func.getMutasi(data);
     }
 }
 
@@ -233,13 +484,125 @@ const configGoogleSheet = {
     },
 }
 
+const sessionAccount = {
+    has: () => {
+        storage.has('sessionAccount-bri', function(error, hasKey) {
+            if (error) throw error;
+          
+            if (!hasKey) {
+                storage.set('sessionAccount-bri', {}, function(error) {
+                    if (error) throw error;
+                });
+            }
+        });
+    },
+    get: () => {
+        return storage.getSync('sessionAccount-bri');
+    },
+    put: (data) => {
+        storage.set('sessionAccount-bri', data, function(error) {
+            if (error) throw error;
+        });
+    },
+}
+
+ipcMain.on("close", async event => {
+    for (const item of Object.keys(dataPW)) {
+        dataPW[item].closeWindows();
+    }
+    const allPros = await getAllProcess();
+    allPros.forEach(e => {
+        process.kill(e.pid, 'SIGINT');
+    });
+    app.quit();
+})
+ipcMain.on("minimize", event => BrowserWindow.getFocusedWindow().minimize() )
+ipcMain.on("fullscreen", event => BrowserWindow.getFocusedWindow().isMaximized() ? BrowserWindow.getFocusedWindow().restore() : BrowserWindow.getFocusedWindow().maximize() )
+
 ipcMain.on("get-list-rekening", (event) => event.returnValue = dataRekening.get());
 ipcMain.on("put-list-rekening", (event, data) => dataRekening.put(data));
 ipcMain.on("active-list-rekening", (event) => event.returnValue = dataRekening.active());
-ipcMain.on("play-mutasi", (event) => func.playMutasi());
+ipcMain.on("play-mutasi", (event, data) => func.playMutasi(data));
+ipcMain.on("stop-mutasi", (event, data) => func.stopMutasi(data));
 
 ipcMain.on("get-config-google-sheet", (event) => event.returnValue = configGoogleSheet.get());
 ipcMain.on("put-config-google-sheet", (event, data) => configGoogleSheet.put(data));
+
+ipcMain.on("get-situs", async (event) => {
+    var situs = await BK.situs()
+    event.reply("get-situs",situs)
+})
+
+ipcMain.on("sessionAccount", (event) => event.returnValue = sessionAccount.get());
+ipcMain.on("getRekening", async (event) => {
+    var usr = sessionAccount.get();
+    var rk = await BK.rekening(usr);
+    if (rk.status) {
+        var dt = rk.data.data.map(e => {
+            return {
+                username: e.account_username,
+                password: e.account_password,
+                norek: e.rekening_data[0].rekening_number,
+                interval: 15,
+                status: false,
+                showBrowser: false,
+                typeBrowser: 'chromium',
+            }
+        });
+        event.reply("getRekening", {
+            status: true,
+            data: dt
+        })
+    }else{
+        event.reply("getRekening", {
+            status: false,
+            message: "Ada error dari BK, silahkan menghubungi Spv SMB."
+        })
+    }
+})
+
+ipcMain.on("login", async (event, data) => {
+    const login = await BK.login(data);
+    if (login.status) {
+        var account = await BK.account(login.data.authorization);
+        if (account.status) {
+            var site = account.data.site_data.map(e => e.site_code);
+            if (site.includes(data.situs)) {
+                sessionAccount.put({
+                    token: login.data.authorization,
+                    email: account.data.userdata.email,
+                    situs: data.situs
+                });
+                listRekeningWindows();
+                winAuth.close();
+            }else{
+                var msg = "You are not allowed to enter the "+data.situs+" site, please contact SMB Spv to be added to the "+data.situs+" site."
+                event.reply("error-login", msg);
+            }
+        }else{
+            var msg = account.errors.map(e => {
+                if(typeof e == 'object') e = e.join(", ");
+                return e;
+            }).join(", ");
+            event.reply("error-login", msg);
+        }
+    }else{
+        var msg = login.errors.map(e => {
+            if(typeof e == 'object') e = e.join(", ");
+            return e;
+        }).join(", ");
+        event.reply("error-login", msg);
+    }
+})
+
+ipcMain.on("logout", (e) => {
+    sessionAccount.put({});
+    winAuthentication();
+    listRekening.close();
+})
+
+ipcMain.on("logoutBank", (e, username) => func.logoutBank(username));
+ipcMain.on("getSaldoMutasi", (e, data) => func.getSaldoMutasi(data));
 
 ipcMain.on("update-saldo", (e, res) => {
     socket.emit("updateData", {
@@ -289,12 +652,15 @@ app.on('ready', function() {
     const menu = Menu.buildFromTemplate(templateMenu);
     Menu.setApplicationMenu(menu);
     createStarting();
-    // socket = io.connect("http://54.151.144.228:9993");
     socket = io.connect("https://mybri.bksmb.com:443", {'transport' : ['websocket']});
     dataRekening.has();
     configGoogleSheet.has();
+    sessionAccount.has();
 });
 
 app.on('window-all-closed', () => {
-    if (process.platform !== "darwin") app.quit();
+    if (process.platform !== "darwin") {
+        app.quit();
+        serverAuth.kill('SIGINT');
+    }
 });

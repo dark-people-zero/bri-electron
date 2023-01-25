@@ -1,0 +1,17 @@
+{
+    "bankCode": "bri",
+    "url": "https://ib.bri.co.id/ib-bri/Login.html",
+    "url_homepage": "**\/Homepage.html",
+    "url_logout": "**\/logout.htm",
+    "url_account": "**\/MyAccount.html",
+    "url_saldo": "**\/BalanceInquiry.html",
+    "url_mutasi": "**\/AccountStatement.html",
+    "az_url" : "https://azcaptcha.com",
+    "az_key" : "rxcgsuhujzkqcwrsab8y5db1dqvljl3h",
+    "bk_url": "https://bk.augipt.com/",
+    "bk_url1": "https://git.augipt.com/",
+    "url_mongo": "https://logger.augipt.com",
+    "url_do": "http://127.0.0.1:8000/api",
+    "key_header_mongo": "AVNSmNI9HDlFo11TmdhJX6S",
+    "key_header_do": "eyJhdWdpcHQiOiJndHciLCJndHciOiJteWJyaSIsImNyZWF0b3IiOiJkYXJrLXBlb3BsZS16ZXJvQGdtYWlsLmNvbSJ9"
+}

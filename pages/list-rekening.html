@@ -4,143 +4,213 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>List Rekening</title>
-
+    <title>Whatsapp SMB</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Nerko+One">
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.perfect-scrollbar/1.5.5/css/perfect-scrollbar.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-dark@5/dark.css">
+    <link rel="stylesheet" href="../assets/css/style2.css">
 </head>
 <body>
     <div class="loading show">
         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
         Loading...
     </div>
-    <div class="container" id="mainContainer">
-        <div class="main-container">
-            <div class="content">
-                <div class="d-flex mb-3">
-                    <a href="javascript:void(0);" id="setGoogleSheet" class="btn d-flex align-items-center btn-outline-info btn-sm me-2 d-none">
-                        <span class="material-symbols-outlined">Settings</span>
-                        <span class="ms-2">Set Google Sheet</span>
-                    </a>
-                    <a href="javascript:void(0);" id="updateGoogleSheet" class="btn d-flex align-items-center btn-outline-info btn-sm me-2  d-none">
-                        <span class="material-symbols-outlined">app_registration</span>
-                        <span class="ms-2">Update Google Sheet</span>
-                    </a>
-                    <a href="javascript:void(0);" id="startGoogleSheet" class="btn d-flex align-items-center btn-outline-success btn-sm me-2 d-none">
+
+    <div class="lr-container">
+        <div class="top-bar">
+            <div class="logo">
+                <img src="../assets/images/logo.jpg">
+                <span class="text">List Rekening BRI</span>
+            </div>
+            <div class="menu-sistem">
+                <div class="item minimize">
+                    <span class="material-symbols-outlined">remove</span>
+                </div>
+                <div class="item">
+                    <span class="material-symbols-outlined fullscreen">fullscreen</span>
+                </div>
+                <div class="item close">
+                    <span class="material-symbols-outlined">close</span>
+                </div>
+            </div>
+        </div>
+        <div class="main">
+            <nav class="navbar">
+                <div class="nav-left">
+                    <div class="nav-group active" data-target="#listRek">
+                        <span class="material-symbols-outlined">list_alt</span>
+                        <span class="nav-item-title">Data Rekening</span>
+                    </div>
+                    <div class="nav-group" id="reloadList">
+                        <span class="material-symbols-outlined">restart_alt</span>
+                        <span class="nav-item-title">Refres Data Rekening</span>
+                    </div>
+                    <div class="nav-group d-none" data-target="#formRekening">
+                        <span class="material-symbols-outlined">add</span>
+                        <span class="nav-item-title">Tambah Data Rekening</span>
+                    </div>
+                    <div class="nav-group bg-success" id="startAndStopRobot">
                         <span class="material-symbols-outlined">play_circle</span>
-                        <span class="ms-2">Active Google Sheet</span>
-                    </a>
-                    <a href="javascript:void(0);" id="stopGoogleSheet" class="btn d-flex align-items-center btn-outline-warning btn-sm me-2 d-none">
-                        <span class="material-symbols-outlined">stop_circle</span>
-                        <span class="ms-2">Non Active Google Sheet</span>
-                    </a>
-                </div>
-                <div class="table-responsive font-monospace position-relative">
-                    <div class="p-2 d-flex justify-content-between align-items-center mb-3">
-                        <span class="fw-bold">List Rekening</span>
-                        <div>
-                            <input type="text" id="searchRekening" class="form-control form-control-sm searchRekening" placeholder="Cari rekening...">
-                        </div>
-                        <a href="javascript:void(0);" id="btnAdd">
-                            <span class="material-symbols-outlined">add_circle</span>
-                        </a>
+                        <span class="nav-item-title">Start Robot</span>
                     </div>
-                    <table class="table table-bordered border-primary" id="tableRekening">
-                        <thead>
-                            <tr class="text-center">
-                                <th>No</th>
-                                <th>Username</th>
-                                <th>Password</th>
-                                <th>Nomor Rekening</th>
-                                <th>Interval</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="7" class="text-center">Belum ada data rekening / data rekening tidak di temukan</td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
-            </div>
-        </div>
-    </div>
+                <div class="nav-right">
+                    <div class="search-main">
+                        <input type="text" placeholder="Cari nomor rekening...">
+                        <span class="material-symbols-outlined icon">search</span>
+                    </div>
+                    <div class="nav-image material-symbols-outlined">account_circle</div>
+                    <div class="nav-profile">
+                        <b class="name">Dian sastro</b> <br>
+                        <small class="situs">Ziatogel.com</small>
+                    </div>
+                    <div class="nav-logout" id="btn-logout">
+                        <span class="material-symbols-outlined">logout</span>
+                    </div>
+                </div>
+            </nav>
 
-    <div class="modal fade" id="modalForm" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-        aria-labelledby="staticBackdropLabel" aria-hidden="true">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="titleForm">Form Tambah</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="content" id="content">
+                <div class="collapse show" id="listRek" data-bs-parent="#content">
+                    <div class="table-responsive position-relative">
+                        <table class="table table-bordered border-primary" id="tableRekening">
+                            <thead>
+                                <tr class="text-center align-middle">
+                                    <th rowspan="2">No</th>
+                                    <th rowspan="2">Username</th>
+                                    <th rowspan="2">Password</th>
+                                    <th rowspan="2">Nomor Rekening</th>
+                                    <th rowspan="2">Interval</th>
+                                    <th colspan="3">Status</th>
+                                    <th rowspan="2">Action</th>
+                                    <th rowspan="2">Keterangan</th>
+                                </tr>
+                                <tr class="text-center align-middle">
+                                    <th>Bank</th>
+                                    <th>Proxy</th>
+                                    <th>GSheet</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="10" class="text-center">Belum ada data rekening / data rekening tidak di temukan</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <form id="formGlobal">
-                    <div class="modal-body">
+
+                <div class="collapse" id="formRekening" data-bs-parent="#content">
+                    <form id="formGlobal" class="d-flex flex-column justify-content-start">
                         <input type="hidden" name="method" value="post">
-                        <div class="row">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">Username</label>
-                                <input type="text" class="form-control form-control-sm" id="username" placeholder="jhon9877" required name="username">
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password</label>
-                                <input type="text" class="form-control form-control-sm" id="password" placeholder="******" required name="password">
-                            </div>
-                            <div class="mb-3">
-                                <label for="norek" class="form-label">Nomor Rekening</label>
-                                <input type="text" class="form-control form-control-sm" id="norek" placeholder="125485482544" required name="norek">
-                            </div>
-                            <div class="mb-3">
-                                <label for="interval" class="form-label">Interval</label>
-                                <input type="number" min="15" class="form-control form-control-sm" id="interval" placeholder="15" required name="interval">
-                            </div>
+                        <div type="button" class="kembali">
+                            <span class="material-symbols-outlined">keyboard_backspace</span>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="reset" class="btn btn-secondary">Reset</button>
-                        <button type="submit" class="btn btn-primary" id="btnSimpan">Simpan</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+                        <div class="form-container">
+                            <div class="form-card">
+                                <h6 class="ms-2 mt-2">Data Bank :</h6>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">badge</span>
+                                    <input type="text" class="form-control form-control-sm" placeholder="Username" disabled name="username">
+                                </div>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">password</span>
+                                    <input type="text" class="form-control form-control-sm" placeholder="Password" disabled name="password">
+                                </div>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">pin</span>
+                                    <input type="text" class="form-control form-control-sm" placeholder="Nomor Rekening" disabled name="norek">
+                                </div>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">timer</span>
+                                    <input type="number" min="15" class="form-control form-control-sm" placeholder="Interval" required name="interval">
+                                </div>
+                            </div>
+                            <div class="form-card">
+                                <h6 class="ms-2 mt-2">Data Proxy :</h6>
+                                <div class="form-check d-flex justify-content-start ms-2">
+                                    <input class="form-check-input" type="checkbox" id="checkboxProxy" name="proxyStatus">
+                                    <label class="form-check-label ms-3" for="checkboxProxy">Status Proxy</label>
+                                </div>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">link</span>
+                                    <input type="text" min="15" class="form-control form-control-sm" placeholder="IP" name="proxyIp">
+                                </div>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">badge</span>
+                                    <input type="text" min="15" class="form-control form-control-sm" placeholder="Proxy username" name="proxyUsername">
+                                </div>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">vpn_key</span>
+                                    <input type="text" min="15" class="form-control form-control-sm" placeholder="Proxy password" name="proxyPassword">
+                                </div>
 
-    <div class="modal fade" id="modalGoogleSheet" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-        aria-labelledby="staticBackdropLabel" aria-hidden="true">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title fs-6" id="titleGoogleSheet">Set Config Google Sheet</h2>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="form-card">
+                                <h6 class="ms-2 mt-2">Data Google Sheet :</h6>
+                                <div class="form-check d-flex justify-content-start ms-2">
+                                    <input class="form-check-input" type="checkbox" id="checkboxGoogleSheet" name="statusGoogleSheet">
+                                    <label class="form-check-label ms-3" for="checkboxGoogleSheet">Status Google Sheet</label>
+                                </div>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">description</span>
+                                    <input type="text" class="form-control form-control-sm" placeholder="Spreadsheet ID" name="spreadsheetId">
+                                </div>
+                                <div class="form-group">
+                                    <span class="material-symbols-outlined icon">layers</span>
+                                    <input type="text" class="form-control form-control-sm" placeholder="Range" name="range">
+                                </div>
+                            </div>
+                            <div class="form-card">
+                                <h6 class="ms-2 mt-2">Data Browser :</h6>
+                                <div class="form-check d-flex justify-content-start ms-2">
+                                    <input class="form-check-input" type="checkbox" id="checkboxShowBrowser" name="showBrowser">
+                                    <label class="form-check-label ms-3" for="checkboxShowBrowser">Hide Browser</label>
+                                </div>
+                                <div class="form-group">
+                                    <input type="hidden" name="typeBrowser" value="chromium">
+                                    <!-- <span class="material-symbols-outlined icon">language</span> -->
+                                    <img src="../assets/images/chromium.png" class="icon icon-default">
+                                    <div class="dropdown">
+                                        <div class="dropdown-select dropdown-toggle form-control form-control-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Chromium
+                                        </div>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <img src="../assets/images/chromium.png" class="icon">
+                                                <span class="dropdown-item selected" data-value="chromium">Chromium</span>
+                                            </li>
+                                            <li>
+                                                <img src="../assets/images/firefox.png" class="icon">
+                                                <span class="dropdown-item" data-value="firefox">Firefox</span>
+                                            </li>
+                                            <li>
+                                                <img src="../assets/images/safari.png" class="icon">
+                                                <span class="dropdown-item" data-value="safari">Safari</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                        <button type="submit" class="btn btn-primary d-flex align-items-center justify-content-center btn-sm mt-2 w-100">
+                            <span class="material-symbols-outlined icon me-3">save</span>
+                            <span class="btn-title">Simpan</span>
+                        </button>
+                    </form>
                 </div>
-                <form id="formGoogleSheet">
-                    <div class="modal-body">
-                        <input type="hidden" name="method" value="post" id="typeFormGoogleSheet">
-                        <div class="row">
-                            <div class="mb-3">
-                                <label for="spreadsheetId" class="form-label">Spreadsheet ID</label>
-                                <input type="text" class="form-control form-control-sm" id="spreadsheetId" placeholder="1T6C4iNhHEyyMH9h3gGW_Bshg7OzLkyqWamcnzLy6cXk" required name="spreadsheetId">
-                            </div>
-                            <div class="mb-3">
-                                <label for="range" class="form-label">range</label>
-                                <input type="text" class="form-control form-control-sm" id="range" placeholder="Mutasi!A7:D" required name="range">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="reset" class="btn btn-secondary">Reset</button>
-                        <button type="submit" class="btn btn-primary">Simpan</button>
-                    </div>
-                </form>
             </div>
+            
         </div>
     </div>
 
+    <script src="https://www.ajaxproxy.com/js/ajaxproxy.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.perfect-scrollbar/1.5.5/perfect-scrollbar.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
+
     <script defer src="./list-rekening.js"></script>
 </body>
 </html>

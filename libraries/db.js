@@ -1,5 +1,5 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const config = require('../config.json');
+const axios = require("axios");
 
 class DB {
 	constructor() {
@@ -12,15 +12,16 @@ class DB {
 			var doUrl = config.url_do+"/"+type;
 
 			var opt = {
-				method : 'POST',
-				body : JSON.stringify(prm.data),
+				method : 'post',
+				url: mongoUrl,
+				data : JSON.stringify(prm.data),
 				headers : {
 					'Content-Type' : 'application/json',
 					'X-Augipt-Gtwmutasi' : config.key_header_mongo
 				}
 			}
-			let req = await fetch(mongoUrl, opt);
-			let res = await req.json();
+			let req = await axios(opt);
+			let res = await req.data;
 			if (res.status) {
 				var dataDo = {
 					"bank": config.bankCode,
@@ -30,10 +31,11 @@ class DB {
 					"created_by": prm.email,
 					"date": prm.time
 				}
-				opt.body = JSON.stringify(dataDo);
+				opt.url = doUrl;
+				opt.data = JSON.stringify(dataDo);
 				opt.headers['X-Augipt-Gtwmutasi'] = config.key_header_do;
-				req = await fetch(doUrl, opt);
-				res = await req.json();
+				req = await axios(opt);
+				res = await req.data;
 				if (res.status) return res;
 				else return {
 					status: false,
@@ -54,53 +56,62 @@ class DB {
 		}
 	}
 
-	async mutasi(prm) {
+	async privilage(email) {
 		try {
-			var mongoUrl = config.url_mongo+"/insert";
-			var doUrl = config.url_do+"/mutasi";
-
+			var doUrl = config.url_do+"/privilage/"+email;
+	
 			var opt = {
-				method : 'POST',
-				body : JSON.stringify(prm.data),
+				method : 'get',
+				url: doUrl,
 				headers : {
-					'Content-Type' : 'application/json',
-					'X-Augipt-Gtwmutasi' : config.key_header_mongo
+					'X-Augipt-Gtwmutasi' : config.key_header_do,
+					'X-Augipt-Trustmail': config.key_header_email
 				}
 			}
-			let req = await fetch(mongoUrl, opt);
-			let res = await req.json();
-			if (res.status) {
-				var dataDo = {
-					"bank": config.bankCode,
-					"no_rek": prm.norek,
-					"username": prm.username,
-					"mongo_id": res.id,
-					"created_by": prm.email,
-					"date": prm.time
-				}
-				opt.body = JSON.stringify(dataDo);
-				opt.headers['X-Augipt-Gtwmutasi'] = config.key_header_do;
-				req = await fetch(doUrl, opt);
-				res = await req.json();
-				if (res.status) return res;
-				else return {
-					status: false,
-					message: res.message.join(",")
-				}
+			let req = await axios(opt);
+			let res = await req.data;
+			return res;
+		} catch (error) {
+			if ([401, 422].includes(error.response.status)) {
+				return error.response.data;
 			}else{
 				return {
 					status: false,
-					message: res.errors.join(",")
+					message: error.message
 				}
-			}
-		} catch (err) {
-			console.log(err.message);
-			return {
-				status: false,
-				message: err.message
 			}
 		}
 	}
+
+	async getMacaddres(where) {
+		try {
+			var doUrl = config.url_do+"/macaddres";
+	
+			var opt = {
+				method : 'get',
+				url: doUrl,
+				params: where,
+				headers : {
+					'X-Augipt-Gtwmutasi' : config.key_header_do,
+					'X-Augipt-Trustmail': config.key_header_email
+				}
+			}
+			
+			let req = await axios(opt);
+			let res = await req.data;
+			return res;
+		} catch (error) {
+			if ([401, 422].includes(error.response.status)) {
+				return error.response.data;
+			}else{
+				return {
+					status: false,
+					message: error.message
+				}
+			}
+		}
+	}
+
 }
 
 module.exports = new DB();

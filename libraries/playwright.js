@@ -5,15 +5,23 @@ const config = require('../config.json');
 var HTMLParser = require('node-html-parser');
 const moment = require("moment");
 const readerExcel = require('../libraries/readerExcel');
+const path = require("path");
 
 class PW {
-    constructor(data) {
+    constructor(data, cnf) {
         this.data = data;
+        this.cnf = cnf;
+        this.executablePath = {
+            chromium: path.join(cnf.exeDir,"browser/chromium/chrome-win/chrome.exe"),
+            firefox: path.join(cnf.exeDir,"browser/firefox/firefox/firefox.exe"),
+            webkit: path.join(cnf.exeDir,"browser/webkit/Playwright.exe"),
+        }
         this.captcha = {
             text: null,
             error: false,
             message: ''
         }
+        this.error = false;
         this.statusLogin = false;
         this.close = true;
         this.lang = "id";
@@ -37,18 +45,24 @@ class PW {
             }
             var tb = this.data.typeBrowser;
             if (tb == undefined) {
+                if(!this.cnf.dev) opt.executablePath = this.executablePath.chromium;
                 this.browser = await chromium.launch(opt);
             }else{
                 if(tb == "chromium") {
+                    if(!this.cnf.dev) opt.executablePath = this.executablePath.chromium;
                     this.browser = await chromium.launch(opt);
                 }else if(tb == "firefox") {
+                    if(!this.cnf.dev) opt.executablePath = this.executablePath.firefox;
                     this.browser = await firefox.launch(opt);
                 }else if(tb == "safari") {
+                    if(!this.cnf.dev) opt.executablePath = this.executablePath.webkit;
                     this.browser = await webkit.launch(opt);
                 }else{
+                    if(!this.cnf.dev) opt.executablePath = this.executablePath.chromium;
                     this.browser = await chromium.launch(opt);
                 }
             }
+            
             this.context = await this.browser.newContext({
                 userAgent: userAgent.toString(),
             });
@@ -108,6 +122,7 @@ class PW {
             return this.sendResponse();
             
         } catch (error) {
+            console.log(error);
             return this.sendResponse(false, error.message);
         }
     }
@@ -210,6 +225,7 @@ class PW {
             });
         } catch (error) {
             console.log("error saldo => ", error);
+            this.error = true;
             return this.sendResponse(false, error.message);
         }
     }

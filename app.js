@@ -3,8 +3,6 @@ const log = require('electron-log');
 const { autoUpdater } = require("electron-updater");
 const isDev = require("electron-is-dev");
 const path = require("path");
-const fs = require("fs");
-const io = require("socket.io-client");
 const os = require('os');
 const util = require('util');
 const childProcess = require('child_process');
@@ -14,10 +12,12 @@ const serverAuth = fork(`${__dirname}/pages/login/server.js`);
 const TEN_MEGABYTES = 1000 * 1000 * 10;
 const storage = require('electron-json-storage');
 const GoogleSheet = require("./libraries/googleSheet");
-const moment = require("moment");
 const PW = require('./libraries/playwright');
 const DB = require('./libraries/db');
 const BK = require('./libraries/BK');
+const pjson = require('./package.json');
+const macaddress = require('macaddress');
+let macDevice = null;
 // storage.setDataPath(os.tmpdir());
 
 const UserAgent = require("user-agents");
@@ -50,7 +50,7 @@ var templateMenu = [
     }
 ]
 
-let starting, listRekening, bankWindows, winAuth, socket, googleSheet, dataPW = {};
+let starting, listRekening, bankWindows, macAddress, winAuth, dataPW = {};
 function sendStatusToWindow(text) {
     log.info(text);
     starting.webContents.send('message', text);
@@ -108,63 +108,19 @@ function listRekeningWindows() {
     listRekening.webContents.openDevTools();
 }
 
-function createBankWindows() {
-    const userAgent = new UserAgent({ deviceCategory: 'desktop' });
-    const dataConfigGoogleSheet = configGoogleSheet.get();
-    if (dataConfigGoogleSheet.status) {
-        googleSheet = new GoogleSheet({
-            keyFile: path.join(__dirname, "credentials.json"),
-            spreadsheetId: dataConfigGoogleSheet.spreadsheetId,
-            range: dataConfigGoogleSheet.range,
-            keys: ["tanggal","transaksi","debet","kredit","saldo"],
-        });
-    }
-    bankWindows = new BrowserWindow({
-        // autoHideMenuBar: true,
+function macAddressWindows() {
+    macAddress = new BrowserWindow({
+        width: 1000,
+        frame: false,
         webPreferences: {
             nodeIntegration: true,
-            contextIsolation: false,
-            preload: path.join(__dirname, "preload/bri.js")
+            contextIsolation: false
         },
         resizable: false
     });
-    bankWindows.on('closed', () => {
-        bankWindows = null;
-        googleSheet = null;
-        dataRekening.reset();
-        listRekeningWindows();
-    });
-    bankWindows.webContents.session.on("will-download", (event, item, webContent) => {
-        item.setSavePath(path.join(os.tmpdir(),item.getFilename()));
-        item.on('updated', (event, state) => {
-            if (state === 'interrupted') {
-                console.log('Download is interrupted but can be resumed')
-            }
-        })
-        item.once('done', async (event, state) => {
-            if (state === 'completed') {
-                var data = readerExcel(item.getSavePath());
-                var rek = dataRekening.active();
-                data.mutasi = data.mutasi.filter(function(item, pos, self) {
-                    return self.indexOf(item) == pos;
-                });
-                socket.emit("updateData", {
-                    type: "mutasi",
-                    rek: rek,
-                    data: data
-                });
-                if(googleSheet) await googleSheet.insert(data.mutasi);
-                if(bankWindows) bankWindows.webContents.send("start");
-            } else {
-              console.log(`Download failed: ${state}`)
-            }
-        })
-    })
-    bankWindows.webContents.session.clearCache();
-    bankWindows.webContents.session.clearAuthCache();
-    bankWindows.webContents.setUserAgent(userAgent.toString());
-    bankWindows.loadURL('https://ib.bri.co.id/ib-bri/Login.html');
-    // bankWindows.webContents.openDevTools();
+    macAddress.on('closed', () => macAddress = null);
+    macAddress.loadURL(`file://${__dirname}/pages/mac-addres.html`);
+    macAddress.webContents.openDevTools();
 }
 
 function winAuthentication() {
@@ -240,7 +196,11 @@ const func = {
         });
     },
     playMutasi: async (data, cb = 0) => {
-        const pw = new PW(data);
+        const opt = {
+            dev: isDev,
+            exeDir: app.getPath("exe").replace(pjson.name+".exe","")
+        }
+        const pw = new PW(data, opt);
         dataPW[data.username] = pw;
         const br = await pw.createBrowser();
         var msg = "Sedang membuat browser. percobaan ke "+(cb+1);
@@ -254,8 +214,10 @@ const func = {
                     func.sendMessage(data, "Lagi coba ambil saldo, "+lg.message, false);
                     await func.getSaldo(data);
                     setTimeout(async () => {
-                        func.sendMessage(data, "Lagi coba ambil mutasi, "+lg.message, false);
-                        await func.getMutasi(data);
+                        if (!pw.error) {
+                            func.sendMessage(data, "Lagi coba ambil mutasi, "+lg.message, false);
+                            await func.getMutasi(data);
+                        }
                     }, 1000);
                 }, 1000);
             }else{
@@ -352,6 +314,7 @@ const func = {
         }
     },
     getMutasi: async(data) => {
+        func.sendMessage(data, "Sedang ambil data mutasi", false);
         const pw = dataPW[data.username];
         const mt = await pw.mutasi();
         if (mt.status) {
@@ -414,8 +377,71 @@ const func = {
         delete dataPW[data.username];
     },
     getSaldoMutasi: async (data) => {
+        const pw = dataPW[data.username];
         await func.getSaldo(data);
-        await func.getMutasi(data);
+        if (!pw.error) await func.getMutasi(data);
+    },
+    checAccount: async (data, token) => {
+        try {
+            var account = await BK.account(token);
+            if (account.status) {
+                var site = account.data.site_data.map(e => e.site_code);
+                if (site.includes(data.situs)) {
+                    const ma = await DB.getMacaddres({
+                        username: data.email,
+                        situs: data.situs,
+                        macaddres: macDevice
+                    });
+                    if (ma.status) {
+                        var dtma = ma.data.find(e => e.macaddres == macDevice);
+                        if (dtma) {
+                            const pr = await DB.privilage(data.email);
+                            if (pr.status) {
+                                data.admin = pr.data ? true : false;
+                                sessionAccount.put(data);
+                                return {
+                                    status: true,
+                                    data: data
+                                }
+                            }else{
+                                return {
+                                    status: false,
+                                    message: pr.message
+                                }
+                            }
+                        }else{
+                            var msg = "You are not allowed because your device has not been registered, please contact SMB Spv to add a device ID ("+macDevice+") for your account.";
+                            return {
+                                status: false,
+                                message: msg
+                            }
+                        }
+                    }else{
+                        return {
+                            status: false,
+                            message: ma.message
+                        }
+                    }
+                }else{
+                    var msg = "You are not allowed to enter the "+data.situs+" site, please contact SMB Spv to be added to the "+data.situs+" site.";
+                    return {
+                        status: false,
+                        message: msg
+                    }
+                }
+            }else{
+                var msg = account.errors.map(e => {
+                    if(typeof e == 'object') e = e.join(", ");
+                    return e;
+                }).join(", ");
+                return {
+                    status: false,
+                    message: msg
+                }
+            }
+        } catch (error) {
+            console.log(error);
+        }
     }
 }
 
@@ -561,31 +587,42 @@ ipcMain.on("getRekening", async (event) => {
     }
 })
 
+ipcMain.on("checkAccount", async (event) => {
+    const usr = sessionAccount.get();
+    const ck = await func.checAccount(usr, usr.token);
+    if (ck.status) {
+        event.reply("checkAccount", {
+            status: true,
+            data: ck.data
+        });
+    }else{
+        event.reply("checkAccount", {
+            status: false,
+            message: ck.message
+        });
+    }
+})
+
+ipcMain.on("showRekening", (event) => {
+    listRekeningWindows();
+    macAddress.close();
+})
+
+ipcMain.on("showMacAddress", (event) => {
+    macAddressWindows();
+    listRekening.close();
+})
+
 ipcMain.on("login", async (event, data) => {
     const login = await BK.login(data);
     if (login.status) {
-        var account = await BK.account(login.data.authorization);
-        if (account.status) {
-            var site = account.data.site_data.map(e => e.site_code);
-            if (site.includes(data.situs)) {
-                sessionAccount.put({
-                    token: login.data.authorization,
-                    email: account.data.userdata.email,
-                    situs: data.situs
-                });
-                listRekeningWindows();
-                winAuth.close();
-            }else{
-                var msg = "You are not allowed to enter the "+data.situs+" site, please contact SMB Spv to be added to the "+data.situs+" site."
-                event.reply("error-login", msg);
-            }
-        }else{
-            var msg = account.errors.map(e => {
-                if(typeof e == 'object') e = e.join(", ");
-                return e;
-            }).join(", ");
-            event.reply("error-login", msg);
-        }
+        sessionAccount.put({
+            token: login.data.authorization,
+            email: data.username,
+            situs: data.situs,
+        });
+        listRekeningWindows();
+        winAuth.close();
     }else{
         var msg = login.errors.map(e => {
             if(typeof e == 'object') e = e.join(", ");
@@ -648,11 +685,11 @@ autoUpdater.on('update-not-available', (info) => {
     func.init();
 })
 
-app.on('ready', function() {
+app.on('ready', async function() {
+    macDevice = await macaddress.one();
     const menu = Menu.buildFromTemplate(templateMenu);
     Menu.setApplicationMenu(menu);
     createStarting();
-    socket = io.connect("https://mybri.bksmb.com:443", {'transport' : ['websocket']});
     dataRekening.has();
     configGoogleSheet.has();
     sessionAccount.has();

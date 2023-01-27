@@ -5,14 +5,14 @@ const GoogleSheet = require("../libraries/googleSheet");
 const keyFile = path.join(__dirname, "../credentials.json");
 
 var dataRekening = ipcRenderer.sendSync("get-list-rekening");
-var sessionAccount = ipcRenderer.sendSync("sessionAccount");
+var sessionAccount = {};
 var tableRekening = $("#tableRekening");
 ajaxProxy.init();
+var checkAccount = false;
 
 ipcRenderer.send("getRekening");
 ipcRenderer.on("getRekening", (e, res) => {
     if (res.status) {
-        $(".loading").removeClass("show");
         var arrOld = dataRekening.map(e => e.username);
         res.data.forEach(item => {
             if (arrOld.includes(item.username)) {
@@ -39,6 +39,36 @@ ipcRenderer.on("getRekening", (e, res) => {
     }
 })
 
+ipcRenderer.send("checkAccount");
+ipcRenderer.on("checkAccount", (e, res) => {
+    if (res.status) {
+        sessionAccount = res.data;
+        $('.nav-profile .name').text(sessionAccount.email);
+        $('.nav-profile .situs').text(sessionAccount.situs);
+        console.log(sessionAccount);
+        if (sessionAccount.admin) {
+            $("#dataMacAddress").removeClass("d-none");
+        }else{
+            $("#dataMacAddress").addClass("d-none");
+        }
+        checkAccount = true;
+        if (dataRekening.length > 0 && checkAccount) $(".loading").removeClass("show");
+    }else{
+        Swal.fire({
+            title: 'Opsssss....?',
+            text: res.message,
+            icon: 'info',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'OK',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                ipcRenderer.send("logout");
+            }
+        })
+    }
+})
+
 var robotStandBy = [];
 var robotRunning = [];
 var robotInterval = {};
@@ -54,9 +84,6 @@ const Toast = Swal.mixin({
       toast.addEventListener('mouseleave', Swal.resumeTimer)
     }
 })
-
-if (sessionAccount.email) $('.nav-profile .name').text(sessionAccount.email);
-if (sessionAccount.situs) $('.nav-profile .situs').text(sessionAccount.situs);
 
 $('.nav-group').click(function() {
     var target = $(this).attr('data-target');
@@ -281,7 +308,7 @@ $("#formGlobal").submit(async function(e) {
         $(".loading").removeClass("show");
     }
     ipcRenderer.send("put-list-rekening", dataRekening);
-    $("#listRek").collapse('show');
+    $(".kembali").click();
     Toast.fire({
         icon: 'success',
         title: 'Info',
@@ -330,10 +357,11 @@ $(".kembali").click(() => {
     $("#listRek").collapse('show');
     $('.nav-left .nav-group').removeClass('active');
     $('[data-target="#listRek"]').addClass("active");
+    $(".search-main").val("").trigger("change").show();
 })
 
 function setTable(data) {
-    $(".loading").removeClass("show");
+    if (dataRekening.length > 0 && checkAccount) $(".loading").removeClass("show");
     if (data.length > 0) {
         tableRekening.find("tbody").children().remove();
         data.forEach((val,i) => {
@@ -424,7 +452,7 @@ function setTable(data) {
                 targetTypeBrowser.closest('.form-group').find('.icon-default').attr('src', img);
                 
                 $("#formRekening").collapse('show');
-
+                $(".search-main").val("").trigger("change").hide();
             })
 
             tr.find(".delete-mutasi").click(function() {
@@ -573,6 +601,7 @@ const robot = {
                 ps.addClass('spin');
                 ps.find('.material-symbols-outlined').removeClass('text-success').removeClass('text-warning').addClass('text-info');
                 ps.find('.material-symbols-outlined').text('cached');
+                $(`.keterangan-table[data-username="${data.username}"]`).html('<span class="badge text-bg-success">Sedang ambil data saldo</span>');
                 ipcRenderer.send("getSaldoMutasi", bank);
             }else{
                 interval -= 1;
@@ -619,3 +648,8 @@ const ps = new PerfectScrollbar('#content', {
     wheelPropagation: true,
     minScrollbarLength: 20
 });
+
+$("#dataMacAddress").click(e => {
+    $('.loading').addClass("show");
+    ipcRenderer.send("showMacAddress");
+})

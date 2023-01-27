@@ -338,7 +338,30 @@ const func = {
             }, "mutasi");
 
             if (saveMutasi.status) {
-                func.sendMessage(data, "Berhasil upload data mutasi ke DB", false, true);
+                if (data.statusGoogleSheet) {
+                    func.sendMessage(data, "Sedang upload data mutasi ke Google Sheet", false, false);
+                    const gsheet = new GoogleSheet({
+                        keyFile: path.join(__dirname, "libraries/credentials.json"),
+                        spreadsheetId: data.spreadsheetId,
+                        range: data.range,
+                        keys: ["tanggal","transaksi","debet","kredit","saldo"],
+                    })
+
+                    const gs = await gsheet.insert(dt);
+                    if (gs.status) {
+                        func.sendMessage(data, "Berhasil upload data mutasi ke Google Sheet", false, true);
+                    }else{
+                        func.sendMessage(data, "mencoba logout", false);
+                        var lg = await pw.logout();
+                        if (lg.status) {
+                            func.sendMessage(data, gs.message, true);
+                        } else {
+                            func.sendMessage(data, lg.message, true);
+                        }
+                    }
+                }else{
+                    func.sendMessage(data, "Berhasil upload data mutasi ke DB", false, true);
+                }
             }else{
                 func.sendMessage(data, "mencoba logout", false);
                 var lg = await pw.logout();
@@ -440,7 +463,10 @@ const func = {
                 }
             }
         } catch (error) {
-            console.log(error);
+            return {
+                status: false,
+                message: error.message
+            }
         }
     }
 }

@@ -24,7 +24,8 @@ class GoogleSheet {
             spreadsheetId : this.cnf.spreadsheetId,
             range: this.cnf.range,
         });
-        return getSheetData.data.values.map(e => {
+        var data = getSheetData.data.values;
+        if (data) data = data.map(e => {
             var x = {};
             this.cnf.keys.forEach((val,i) => {
                 x[val] = e[i];
@@ -32,6 +33,8 @@ class GoogleSheet {
 
             return x;
         })
+
+        return data;
     }
 
     async getOne() {
@@ -40,30 +43,38 @@ class GoogleSheet {
     }
 
     async insert(newData) {
-        const googleSheet = await this.getGoogleSheet(this.auth);
-        await googleSheet.spreadsheets.values.clear({
-            auth: this.cnf.auth,
-            spreadsheetId: this.cnf.spreadsheetId,
-            range: this.cnf.range,
-        });
-        var newDataInsert = newData.map(e => {
-            e.debet = e.debet.toLocaleLowerCase().replaceAll("idr","").replaceAll(" ","");
-            e.kredit = e.kredit.toLocaleLowerCase().replaceAll("idr","").replaceAll(" ","");
-            e.saldo = e.saldo.toLocaleLowerCase().replaceAll("idr","").replaceAll(" ","");
-            return Object.values(e);
-        })
+        try {
+            const googleSheet = await this.getGoogleSheet(this.auth);
+            await googleSheet.spreadsheets.values.clear({
+                auth: this.cnf.auth,
+                spreadsheetId: this.cnf.spreadsheetId,
+                range: this.cnf.range,
+            });
+            var newDataInsert = newData.map(e => {
+                e.amount = e.amount.toLocaleLowerCase().replaceAll("idr","").replaceAll(" ","");
+                e.saldo = e.saldo.toLocaleLowerCase().replaceAll("idr","").replaceAll(" ","");
+                return [e.tanggal, e.transaksi, e.type, e.amount, e.saldo];
+            })
 
-        googleSheet.spreadsheets.values.append({
-            auth: this.cnf.auth,
-            spreadsheetId: this.cnf.spreadsheetId,
-            range: this.cnf.range,
-            valueInputOption: 'USER_ENTERED',
-            resource: {
-              values: newDataInsert,
-            },
-        });
-
-        return newDataInsert;
+            googleSheet.spreadsheets.values.append({
+                auth: this.cnf.auth,
+                spreadsheetId: this.cnf.spreadsheetId,
+                range: this.cnf.range,
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: newDataInsert,
+                },
+            });
+            return {
+                status: true,
+                data: newDataInsert
+            };
+        } catch (error) {
+            return {
+                status: false,
+                data: error.message
+            };
+        }
     }
 }
 

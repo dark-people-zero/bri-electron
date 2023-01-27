@@ -2,7 +2,7 @@ window.$ = window.jQuery = require("jquery");
 const { ipcRenderer } = require('electron');
 const path = require('path');
 const GoogleSheet = require("../libraries/googleSheet");
-const keyFile = path.join(__dirname, "../credentials.json");
+const keyFile = path.join(__dirname, "../libraries/credentials.json");
 
 var dataRekening = ipcRenderer.sendSync("get-list-rekening");
 var sessionAccount = {};

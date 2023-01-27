@@ -105,7 +105,7 @@ function listRekeningWindows() {
     });
     listRekening.on('closed', () => listRekening = null);
     listRekening.loadURL(`file://${__dirname}/pages/list-rekening.html`);
-    listRekening.webContents.openDevTools();
+    // listRekening.webContents.openDevTools();
 }
 
 function macAddressWindows() {
@@ -120,7 +120,7 @@ function macAddressWindows() {
     });
     macAddress.on('closed', () => macAddress = null);
     macAddress.loadURL(`file://${__dirname}/pages/mac-addres.html`);
-    macAddress.webContents.openDevTools();
+    // macAddress.webContents.openDevTools();
 }
 
 function winAuthentication() {
@@ -152,7 +152,7 @@ function winAuthentication() {
     winAuth.webContents.session.clearCache();
     winAuth.webContents.session.clearStorageData();
 
-    winAuth.webContents.openDevTools();
+    // winAuth.webContents.openDevTools();
 }
 
 async function getAllProcess() {

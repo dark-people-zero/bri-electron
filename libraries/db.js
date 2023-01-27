@@ -96,7 +96,6 @@ class DB {
 					'X-Augipt-Trustmail': config.key_header_email
 				}
 			}
-			
 			let req = await axios(opt);
 			let res = await req.data;
 			return res;

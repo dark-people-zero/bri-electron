@@ -11,7 +11,7 @@
     "bk_url": "https://bk.augipt.com/",
     "bk_url1": "https://git.augipt.com/",
     "url_mongo": "https://logger.augipt.com",
-    "url_do": "http://localhost:8000/api",
+    "url_do": "https://mutasigtw.bksmb.com:443/api",
     "key_header_mongo": "AVNSmNI9HDlFo11TmdhJX6S",
     "key_header_do": "eyJhdWdpcHQiOiJndHciLCJndHciOiJtdXRhc2lndHciLCJjcmVhdG9yIjoiZGFyay1wZW9wbGUtemVyb0BnbWFpbC5jb20ifQ",
     "key_header_email": "dark.people.zero@gmail.com"

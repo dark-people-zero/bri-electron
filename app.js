@@ -419,7 +419,7 @@ const func = {
                     }else{
                         return {
                             status: false,
-                            message: ma.message
+                            message: ma.message+", pada saat check mac address"
                         }
                     }
                 }else{

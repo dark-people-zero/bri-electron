@@ -719,8 +719,8 @@ app.on('ready', async function() {
     dataRekening.has();
     configGoogleSheet.has();
     sessionAccount.has();
-    func.init();
-    // createStarting();
+    // func.init();
+    createStarting();
 });
 
 app.on('window-all-closed', () => {

@@ -5,7 +5,7 @@ const GoogleSheet = require("../libraries/googleSheet");
 const keyFile = path.join(__dirname, "../libraries/credentials.json");
 
 var dataRekening = ipcRenderer.sendSync("get-list-rekening");
-var sessionAccount = {};
+var sessionAccount = ipcRenderer.sendSync("sessionAccount");
 var tableRekening = $("#tableRekening");
 ajaxProxy.init();
 var checkAccount = false;
@@ -364,152 +364,156 @@ function setTable(data) {
     if (dataRekening.length > 0 && checkAccount) $(".loading").removeClass("show");
     if (data.length > 0) {
         tableRekening.find("tbody").children().remove();
+        var n = 0;
         data.forEach((val,i) => {
-            var tr = $(`
-                <tr class="text-center" id="${val.username}">
-                    <td class="align-middle">${i+1}</td>
-                    <td class="align-middle">${val.username}</td>
-                    <td class="align-middle">${val.password}</td>
-                    <td class="align-middle">${val.norek}</td>
-                    <td class="align-middle interval">${val.interval}s</td>
-                    <td class="text-center align-middle">
-                        <div class="form-check d-flex justify-content-center">
-                            <input class="form-check-input changeStatus" type="checkbox" id="checkBoxStatus${i}" ${val.status ? 'checked' : ''} data-username="${val.username}">
-                            <label class="form-check-label" for="checkBoxStatus${i}"></label>
-                        </div>
-                    </td>
-                    <td class="text-center align-middle">
-                        <div class="form-check d-flex justify-content-center">
-                            <input class="form-check-input statusProxy" type="checkbox" id="checkBox${i}" disabled ${val.proxyStatus ? 'checked' : ''}>
-                            <label class="form-check-label" for="checkBox${i}"></label>
-                        </div>
-                    </td>
-                    <td class="text-center align-middle">
-                        <div class="form-check d-flex justify-content-center">
-                            <input class="form-check-input statusGSheet" type="checkbox" id="statusGoogleSheet${i}" disabled ${val.statusGoogleSheet ? 'checked' : ''}>
-                            <label class="form-check-label" for="statusGoogleSheet${i}"></label>
-                        </div>
-                    </td>
-                    <td class="align-middle">
-                        <div class="d-flex border-start-0 align-items-center justify-content-center">
-                            <div class="playStop-mutasi d-flex align-items-center me-2 ${val.status ? '' : 'd-none'}" type="button" data-username="${val.username}">
-                                <span class="material-symbols-outlined text-success">play_circle</span>
+            if (sessionAccount.situs == val.situs) {
+                n += 1;
+                var tr = $(`
+                    <tr class="text-center" id="${val.username}">
+                        <td class="align-middle">${n}</td>
+                        <td class="align-middle">${val.username}</td>
+                        <td class="align-middle">${val.password}</td>
+                        <td class="align-middle">${val.norek}</td>
+                        <td class="align-middle interval">${val.interval}s</td>
+                        <td class="text-center align-middle">
+                            <div class="form-check d-flex justify-content-center">
+                                <input class="form-check-input changeStatus" type="checkbox" id="checkBoxStatus${i}" ${val.status ? 'checked' : ''} data-username="${val.username}">
+                                <label class="form-check-label" for="checkBoxStatus${i}"></label>
                             </div>
-                            <div class="update-mutasi text-info me-2 d-flex align-items-center action-table" type="button" data-username="${val.username}">
-                                <span class="material-symbols-outlined">edit</span>
+                        </td>
+                        <td class="text-center align-middle">
+                            <div class="form-check d-flex justify-content-center">
+                                <input class="form-check-input statusProxy" type="checkbox" id="checkBox${i}" disabled ${val.proxyStatus ? 'checked' : ''}>
+                                <label class="form-check-label" for="checkBox${i}"></label>
                             </div>
-                            <div class="delete-mutasi text-danger d-flex align-items-center action-table" type="button" data-username="${val.username}">
-                                <span class="material-symbols-outlined text-danger">delete</span>
+                        </td>
+                        <td class="text-center align-middle">
+                            <div class="form-check d-flex justify-content-center">
+                                <input class="form-check-input statusGSheet" type="checkbox" id="statusGoogleSheet${i}" disabled ${val.statusGoogleSheet ? 'checked' : ''}>
+                                <label class="form-check-label" for="statusGoogleSheet${i}"></label>
                             </div>
-                        </div>
-                    </td>
-                    <td class="keterangan-table fw-bold align-middle" data-username="${val.username}">
-                        <span class="badge text-bg-warning text-wrap">Offline</span>
-                    </td>
-                </tr>
-            `)
-
-            tr.find(".changeStatus").change(function() {
-                $(".loading").addClass("show");
-                var prop = $(this).prop("checked");
-                var username = $(this).data("username");
-                dataRekening = dataRekening.map(e => {
-                    if (e.username == username) e.status = prop;
-                    return e;
-                });
-                tr.find(`.playStop-mutasi[data-username="${username}"]`).toggleClass("d-none");
-                ipcRenderer.send("put-list-rekening", dataRekening);
-                $(".loading").removeClass("show");
-            })
-
-            tr.find(".update-mutasi").click(function() {
-                var username = $(this).data("username");
-                var data = dataRekening.find(e => e.username == username);
-                $('input[name="method"]').val(username);
-                $('.btn-title').text("Update");
-
-                $('input[name="username"]').val(data.username);
-                $('input[name="password"]').val(data.password);
-                $('input[name="norek"]').val(data.norek);
-                $('input[name="interval"]').val(data.interval);
-                $('input[name="proxyStatus"]').prop("checked", data.proxyStatus);
-                $('input[name="proxyIp"]').val(data.proxyIp);
-                $('input[name="proxyUsername"]').val(data.proxyUsername);
-                $('input[name="proxyPassword"]').val(data.proxyPassword);
-                $('input[name="statusGoogleSheet"]').prop("checked", data.statusGoogleSheet)
-                $('input[name="spreadsheetId"]').val(data.spreadsheetId);
-                $('input[name="range"]').val(data.range);
-
-                $('input[name="showBrowser"]').prop("checked", data.showBrowser ? data.showBrowser : false);
-                var typeBrowser = data.typeBrowser ? data.typeBrowser : "chromium";
-                $('input[name="typeBrowser"]').val(typeBrowser);
-                $('.dropdown-item').removeClass('selected');
-                var targetTypeBrowser = $(`.dropdown-item[data-value="${typeBrowser}"]`);
-                targetTypeBrowser.addClass('selected');
-                var text = targetTypeBrowser.text();
-                var img = targetTypeBrowser.parent().find('.icon').attr("src");
-                targetTypeBrowser.closest('.form-group').find('[data-bs-toggle="dropdown"]').text(text);
-                targetTypeBrowser.closest('.form-group').find('.icon-default').attr('src', img);
-                
-                $("#formRekening").collapse('show');
-                $(".search-main").val("").trigger("change").hide();
-            })
-
-            tr.find(".delete-mutasi").click(function() {
-                var username = $(this).data("username");
-                Swal.fire({
-                    title: 'Apakah anda yakin?',
-                    text: "Mau menghapus data rekening "+ username,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Iya, Delete aja.',
-                    cancelButtonText: 'Ehhh, Gak jadi deh..'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        dataRekening = dataRekening.filter(e => e.username != username);
-                        setTable(dataRekening);
-                        ipcRenderer.send("put-list-rekening", dataRekening);
-                        Swal.fire(
-                            'Deleted!',
-                            'Rekening '+ username + ' berhasil di hapus.',
-                            'success'
-                        )
+                        </td>
+                        <td class="align-middle">
+                            <div class="d-flex border-start-0 align-items-center justify-content-center">
+                                <div class="playStop-mutasi d-flex align-items-center me-2 ${val.status ? '' : 'd-none'}" type="button" data-username="${val.username}">
+                                    <span class="material-symbols-outlined text-success">play_circle</span>
+                                </div>
+                                <div class="update-mutasi text-info me-2 d-flex align-items-center action-table" type="button" data-username="${val.username}">
+                                    <span class="material-symbols-outlined">edit</span>
+                                </div>
+                                <div class="delete-mutasi text-danger d-flex align-items-center action-table" type="button" data-username="${val.username}">
+                                    <span class="material-symbols-outlined text-danger">delete</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="keterangan-table fw-bold align-middle" data-username="${val.username}">
+                            <span class="badge text-bg-warning text-wrap">Offline</span>
+                        </td>
+                    </tr>
+                `)
+    
+                tr.find(".changeStatus").change(function() {
+                    $(".loading").addClass("show");
+                    var prop = $(this).prop("checked");
+                    var username = $(this).data("username");
+                    dataRekening = dataRekening.map(e => {
+                        if (e.username == username) e.status = prop;
+                        return e;
+                    });
+                    tr.find(`.playStop-mutasi[data-username="${username}"]`).toggleClass("d-none");
+                    ipcRenderer.send("put-list-rekening", dataRekening);
+                    $(".loading").removeClass("show");
+                })
+    
+                tr.find(".update-mutasi").click(function() {
+                    var username = $(this).data("username");
+                    var data = dataRekening.find(e => e.username == username);
+                    $('input[name="method"]').val(username);
+                    $('.btn-title').text("Update");
+    
+                    $('input[name="username"]').val(data.username);
+                    $('input[name="password"]').val(data.password);
+                    $('input[name="norek"]').val(data.norek);
+                    $('input[name="interval"]').val(data.interval);
+                    $('input[name="proxyStatus"]').prop("checked", data.proxyStatus);
+                    $('input[name="proxyIp"]').val(data.proxyIp);
+                    $('input[name="proxyUsername"]').val(data.proxyUsername);
+                    $('input[name="proxyPassword"]').val(data.proxyPassword);
+                    $('input[name="statusGoogleSheet"]').prop("checked", data.statusGoogleSheet)
+                    $('input[name="spreadsheetId"]').val(data.spreadsheetId);
+                    $('input[name="range"]').val(data.range);
+    
+                    $('input[name="showBrowser"]').prop("checked", data.showBrowser ? data.showBrowser : false);
+                    var typeBrowser = data.typeBrowser ? data.typeBrowser : "chromium";
+                    $('input[name="typeBrowser"]').val(typeBrowser);
+                    $('.dropdown-item').removeClass('selected');
+                    var targetTypeBrowser = $(`.dropdown-item[data-value="${typeBrowser}"]`);
+                    targetTypeBrowser.addClass('selected');
+                    var text = targetTypeBrowser.text();
+                    var img = targetTypeBrowser.parent().find('.icon').attr("src");
+                    targetTypeBrowser.closest('.form-group').find('[data-bs-toggle="dropdown"]').text(text);
+                    targetTypeBrowser.closest('.form-group').find('.icon-default').attr('src', img);
+                    
+                    $("#formRekening").collapse('show');
+                    $(".search-main").val("").trigger("change").hide();
+                })
+    
+                tr.find(".delete-mutasi").click(function() {
+                    var username = $(this).data("username");
+                    Swal.fire({
+                        title: 'Apakah anda yakin?',
+                        text: "Mau menghapus data rekening "+ username,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Iya, Delete aja.',
+                        cancelButtonText: 'Ehhh, Gak jadi deh..'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            dataRekening = dataRekening.filter(e => e.username != username);
+                            setTable(dataRekening);
+                            ipcRenderer.send("put-list-rekening", dataRekening);
+                            Swal.fire(
+                                'Deleted!',
+                                'Rekening '+ username + ' berhasil di hapus.',
+                                'success'
+                            )
+                        }
+                    })
+                    
+                })
+    
+                tr.find(".playStop-mutasi").click(function() {
+                    var username = $(this).data("username");
+                    var stat = $(this).hasClass('on');
+                    var data = dataRekening.find(e => e.username == username);
+                    if (!robotRunning.includes(username)) {
+                        if (stat) {
+                            Swal.fire({
+                                title: 'Apakah anda yakin?',
+                                text: "Mau menghentikan robot "+ username,
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonColor: '#3085d6',
+                                cancelButtonColor: '#d33',
+                                confirmButtonText: 'Iya, Yakin.',
+                                cancelButtonText: 'Ehhh, Gak jadi deh..'
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    clearInterval(robotInterval[username]);
+                                    delete robotInterval[username];
+                                    robot.logoutBank(username);
+                                }
+                            })
+                        }else{
+                            robot.start(data);
+                        }
                     }
                 })
-                
-            })
-
-            tr.find(".playStop-mutasi").click(function() {
-                var username = $(this).data("username");
-                var stat = $(this).hasClass('on');
-                var data = dataRekening.find(e => e.username == username);
-                if (!robotRunning.includes(username)) {
-                    if (stat) {
-                        Swal.fire({
-                            title: 'Apakah anda yakin?',
-                            text: "Mau menghentikan robot "+ username,
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonColor: '#3085d6',
-                            cancelButtonColor: '#d33',
-                            confirmButtonText: 'Iya, Yakin.',
-                            cancelButtonText: 'Ehhh, Gak jadi deh..'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                clearInterval(robotInterval[username]);
-                                delete robotInterval[username];
-                                robot.logoutBank(username);
-                            }
-                        })
-                    }else{
-                        robot.start(data);
-                    }
-                }
-            })
-
-            tableRekening.find("tbody").append(tr);
+    
+                tableRekening.find("tbody").append(tr);
+            }
         });
     }else{
         tableRekening.find("tbody").children().remove();

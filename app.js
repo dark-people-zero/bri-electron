@@ -105,7 +105,7 @@ function listRekeningWindows() {
     });
     listRekening.on('closed', () => listRekening = null);
     listRekening.loadURL(`file://${__dirname}/pages/list-rekening.html`);
-    // listRekening.webContents.openDevTools();
+    listRekening.webContents.openDevTools();
 }
 
 function macAddressWindows() {
@@ -179,7 +179,7 @@ async function getAllProcess() {
 
 const func = {
     init: () => {
-        starting.close();
+        if(starting) starting.close();
         var sesiAccount = sessionAccount.get();
         if (sesiAccount.token) {
             listRekeningWindows();
@@ -599,6 +599,7 @@ ipcMain.on("getRekening", async (event) => {
                 status: false,
                 showBrowser: false,
                 typeBrowser: 'chromium',
+                situs: usr.situs
             }
         });
         event.reply("getRekening", {
@@ -715,10 +716,11 @@ app.on('ready', async function() {
     macDevice = await macaddress.one();
     const menu = Menu.buildFromTemplate(templateMenu);
     Menu.setApplicationMenu(menu);
-    createStarting();
     dataRekening.has();
     configGoogleSheet.has();
     sessionAccount.has();
+    // func.init();
+    createStarting();
 });
 
 app.on('window-all-closed', () => {

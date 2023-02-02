@@ -20,6 +20,7 @@ class DB {
 					'X-Augipt-Gtwmutasi' : config.key_header_mongo
 				}
 			}
+			
 			let req = await axios(opt);
 			let res = await req.data;
 			if (res.status) {
@@ -31,6 +32,7 @@ class DB {
 					"created_by": prm.email,
 					"date": prm.time
 				}
+				console.log(dataDo);
 				opt.url = doUrl;
 				opt.data = JSON.stringify(dataDo);
 				opt.headers['X-Augipt-Gtwmutasi'] = config.key_header_do;

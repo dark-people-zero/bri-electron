@@ -1,5 +1,6 @@
 {
     "bankCode": "bri",
+    "timezone": "Asia/Bangkok",
     "url": "https://ib.bri.co.id/ib-bri/Login.html",
     "url_homepage": "**\/Homepage.html",
     "url_logout": "**\/logout.htm",

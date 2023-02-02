@@ -3,7 +3,8 @@ const UserAgent = require("user-agents");
 const Azcaptcha = require('./azcaptcha');
 const config = require('../config.json');
 var HTMLParser = require('node-html-parser');
-const moment = require("moment");
+// const moment = require("moment");
+const moment = require("moment-timezone");
 const readerExcel = require('../libraries/readerExcel');
 const path = require("path");
 
@@ -215,9 +216,7 @@ class PW {
             var data = parser.querySelector("tbody tr td:last-child").innerText;
             data = data.replaceAll("&nbsp", "").replaceAll(".","").replaceAll(",",".");
 
-            var time = await this.page.locator("#clockbox").textContent();
-            moment.locale(this.lang);
-            time = moment(time, "dddd, DD MMMM YYYY hh:mm:ss").format("YYYY-MM-DD");
+            var time = moment().tz(config.timezone).format("YYYY-MM-DD");
 
             return this.sendResponse(true, "", false,{
                 saldo: parseFloat(data),
@@ -238,9 +237,7 @@ class PW {
             await iframemenu.locator('a[href="AccountStatement.html"]').click();
             await this.page.waitForResponse(config.url_mutasi);
 
-            var time = await this.page.locator("#clockbox").textContent();
-            moment.locale(this.lang);
-            time = moment(time, "dddd, DD MMMM YYYY hh:mm:ss").format("YYYY-MM-DD");
+            var time = moment().tz(config.timezone).format("YYYY-MM-DD");
 
             await iframecontent.locator("#ACCOUNT_NO").selectOption(this.data.norek);
             await this.page.waitForTimeout(2000);

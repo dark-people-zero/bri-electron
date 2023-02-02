@@ -105,7 +105,7 @@ function listRekeningWindows() {
     });
     listRekening.on('closed', () => listRekening = null);
     listRekening.loadURL(`file://${__dirname}/pages/list-rekening.html`);
-    listRekening.webContents.openDevTools();
+    // listRekening.webContents.openDevTools();
 }
 
 function macAddressWindows() {

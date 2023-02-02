@@ -3,6 +3,7 @@ const { ipcRenderer } = require('electron');
 const path = require('path');
 const GoogleSheet = require("../libraries/googleSheet");
 const keyFile = path.join(__dirname, "../libraries/credentials.json");
+const config = require("../config.json");
 
 var dataRekening = ipcRenderer.sendSync("get-list-rekening");
 var sessionAccount = ipcRenderer.sendSync("sessionAccount");
@@ -34,7 +35,7 @@ ipcRenderer.on("getRekening", (e, res) => {
             cancelButtonColor: '#d33',
             confirmButtonText: 'Oke bosss',
         }).then((result) => {
-            ipcRenderer.send("close");
+            ipcRenderer.send("logout");
         })
     }
 })
@@ -45,7 +46,6 @@ ipcRenderer.on("checkAccount", (e, res) => {
         sessionAccount = res.data;
         $('.nav-profile .name').text(sessionAccount.email);
         $('.nav-profile .situs').text(sessionAccount.situs);
-        console.log(sessionAccount);
         if (sessionAccount.admin) {
             $("#dataMacAddress").removeClass("d-none");
         }else{
@@ -228,48 +228,8 @@ $("#formGlobal").submit(async function(e) {
         return a;
     }, {})
 
-    form.username = $('input[name="username"]').val();
-    form.password = $('input[name="password"]').val();
-    form.norek = $('input[name="norek"]').val();
-
-    form.proxyStatus = form.proxyStatus == undefined ? false : true;
     form.statusGoogleSheet = form.statusGoogleSheet == undefined ? false : true;
     form.showBrowser = form.showBrowser == undefined ? false : true;
-
-    if (form.proxyStatus) {
-        ajaxProxy.proxy.url = form.proxyIp;
-        ajaxProxy.proxy.credentials.username = form.proxyUsername;
-        ajaxProxy.proxy.credentials.password = form.proxyPassword;
-        var hasilChek = null;
-        await $.ajax({
-            type: "GET",
-            url: "http://checkip.amazonaws.com/",
-            headers: ajaxProxy.proxyHeaders(),
-            dataType: "text"
-        }).done(function(data) {
-            hasilChek = data;
-        }).fail(function(err) {
-            $(".loading").removeClass('show');
-            Toast.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Data proxy yang anda masukkan salah, silahkan coba chek dengan teliti bos...'
-            })
-        })
-
-        if (hasilChek) {
-            var ip = form.proxyIp.replaceAll("http://", "").replaceAll("https://", "").split(":")[0];
-            if (!hasilChek.includes(ip)) {
-                $(".loading").removeClass('show');
-                Toast.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Data proxy yang anda masukkan salah, silahkan coba chek dengan teliti bos...'
-                })
-                return false;
-            }
-        }
-    }
 
     if (form.statusGoogleSheet) {
         try {
@@ -301,8 +261,15 @@ $("#formGlobal").submit(async function(e) {
     }else{
         var index = dataRekening.findIndex(e => e.username == form.method);
         delete form.method;
-        form.status = dataRekening[index].status;
-        dataRekening[index] = form;
+        dataRekening[index].interval = form.interval;
+
+        dataRekening[index].statusGoogleSheet = form.statusGoogleSheet;
+        dataRekening[index].spreadsheetId = form.spreadsheetId;
+        dataRekening[index].range = form.range;
+
+        dataRekening[index].showBrowser = form.showBrowser;
+        dataRekening[index].typeBrowser = form.typeBrowser;
+        
         $(`#${form.username}`).find('.interval').text(form.interval+"s");
         $(`#${form.username}`).find('.statusProxy').prop("checked", form.proxyStatus);
         $(".loading").removeClass("show");

@@ -105,7 +105,7 @@ function listRekeningWindows() {
     });
     listRekening.on('closed', () => listRekening = null);
     listRekening.loadURL(`file://${__dirname}/pages/list-rekening.html`);
-    // listRekening.webContents.openDevTools();
+    listRekening.webContents.openDevTools();
 }
 
 function macAddressWindows() {
@@ -274,11 +274,13 @@ const func = {
     getSaldo: async(data) => {
         const pw = dataPW[data.username];
         const sl = await pw.saldo();
+        const info = pw.info;
         if (sl.status) {
             func.sendMessage(data, "Sedang upload data saldo ke DB", false);
             var usr = sessionAccount.get();
             const saveSaldo = await DB.saveData({
                 data: {
+                    info,
                     saldo: sl.data.saldo
                 },
                 norek: data.norek,
@@ -317,18 +319,19 @@ const func = {
         func.sendMessage(data, "Sedang ambil data mutasi", false);
         const pw = dataPW[data.username];
         const mt = await pw.mutasi();
+        const info = pw.info;
+        const saldo = pw.dataSaldo;
         if (mt.status) {
             func.sendMessage(data, "Sedang upload data mutasi ke DB", false);
             var usr = sessionAccount.get();
             var dt = mt.data.data.mutasi.map(e => {
                 e.type = e.debet != "" || e.debet > 0 ? "DB" : "CR";
-                e.amount = e.debet != "" || e.debet > 0 ? e.debet : e.kredit;
-                delete e.debet;
-                delete e.kredit;
                 return e;
             });
             const saveMutasi = await DB.saveData({
                 data: {
+                    info,
+                    saldo,
                     mutasi: dt
                 },
                 norek: data.norek,
@@ -590,7 +593,21 @@ ipcMain.on("getRekening", async (event) => {
     var usr = sessionAccount.get();
     var rk = await BK.rekening(usr);
     if (rk.status) {
+        
         var dt = rk.data.data.map(e => {
+            var statProxy = false;
+            var proxyIp = "";
+            if (
+                e.account_is_proxified.toLocaleLowerCase() == "y" &&
+                e.proxy_protocol != null &&
+                e.proxy_host != null &&
+                e.proxy_port != null &&
+                e.proxy_username != null &&
+                e.proxy_password != null
+            ) statProxy = true;
+            if (e.proxy_protocol != null) proxyIp = proxyIp+e.proxy_protocol;
+            if (e.proxy_host != null) proxyIp = proxyIp+"://"+e.proxy_host;
+            if (e.proxy_port != null) proxyIp = proxyIp+":"+e.proxy_port;
             return {
                 username: e.account_username,
                 password: e.account_password,
@@ -599,9 +616,15 @@ ipcMain.on("getRekening", async (event) => {
                 status: false,
                 showBrowser: false,
                 typeBrowser: 'chromium',
-                situs: usr.situs
+                situs: usr.situs,
+                proxyStatus: statProxy,
+                proxyIp: proxyIp,
+                proxyUsername: e.proxy_username,
+                proxyPassword: e.proxy_password,
+                bank: e.bank_code
             }
         });
+        
         event.reply("getRekening", {
             status: true,
             data: dt

@@ -32,7 +32,6 @@ class DB {
 					"created_by": prm.email,
 					"date": prm.time
 				}
-				console.log(dataDo);
 				opt.url = doUrl;
 				opt.data = JSON.stringify(dataDo);
 				opt.headers['X-Augipt-Gtwmutasi'] = config.key_header_do;

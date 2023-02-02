@@ -11,6 +11,10 @@ const path = require("path");
 class PW {
     constructor(data, cnf) {
         this.data = data;
+        this.info = {
+            username: data.username,
+            norek: data.norek
+        }
         this.cnf = cnf;
         this.executablePath = {
             chromium: path.join(cnf.exeDir,"browser/chromium/chrome-win/chrome.exe"),
@@ -30,6 +34,7 @@ class PW {
         this.context = null;
         this.page = null;
         this.messageDialog = null;
+        this.dataSaldo = null;
     }
 
     async createBrowser(tc = 0) {
@@ -217,7 +222,7 @@ class PW {
             data = data.replaceAll("&nbsp", "").replaceAll(".","").replaceAll(",",".");
 
             var time = moment().tz(config.timezone).format("YYYY-MM-DD");
-
+            this.dataSaldo = parseFloat(data);
             return this.sendResponse(true, "", false,{
                 saldo: parseFloat(data),
                 time
